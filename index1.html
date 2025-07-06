@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rive Pull The Bottle - Advance & Swipe Controls</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      background: #ffffff;
+    }
+    canvas {
+      width: 100%;
+      max-width: 500px;
+     height:1080px;
+      background: #fff;
+      display: block;
+      margin-bottom: 1rem;
+    }
+    button, input[type="range"] {
+      margin: 0.5rem 0;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    label {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="riveCanvas"></canvas>
+
+  <button id="triggerAdvance">Fire "advance" Trigger / Restart if fired</button>
+
+  <label for="swipeRange">Swipe (0 - 100):</label>
+  <input type="range" id="swipeRange" min="0" max="100" value="0" />
+
+  <script src="https://unpkg.com/@rive-app/canvas"></script>
+  <script>
+    const canvas = document.getElementById("riveCanvas");
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight || (width * 0.75);
+
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    let advanceTriggered = false;
+
+    const riveInstance = new rive.Rive({
+      src: "bottle.riv",
+      canvas: canvas,
+      autoplay: true,
+      stateMachines: ["pull the bottle"],
+      onLoad: () => {
+        console.log("✅ Rive loaded.");
+
+        setTimeout(() => {
+          const inputs = riveInstance.stateMachineInputs("pull the bottle");
+          const StateMachineInputType = { Number: 56, Trigger: 58, Boolean: 59 };
+
+          const advanceInput = inputs.find(i => i.name === "advance");
+          const swipeInput = inputs.find(i => i.name === "swipe");
+
+          if (!advanceInput) {
+            console.warn("⚠️ 'advance' input not found.");
+            return;
+          }
+          if (!swipeInput) {
+            console.warn("⚠️ 'swipe' input not found.");
+            return;
+          }
+
+          // Initialize swipe input value to 0
+          swipeInput.value = 0;
+
+          // Button logic: fire advance or restart
+          document.getElementById("triggerAdvance").addEventListener("click", () => {
+            if (advanceTriggered) {
+              console.log("🔄 Advance already triggered — restarting animation");
+              riveInstance.restart();
+              advanceTriggered = false;
+              // reset swipe input to 0 too for UI sync
+              swipeInput.value = 0;
+              document.getElementById("swipeRange").value = 0;
+            } else {
+              if (advanceInput.type === StateMachineInputType.Trigger) {
+                console.log("🔥 Firing 'advance' trigger");
+                advanceInput.fire();
+                advanceTriggered = true;
+              } else {
+                console.warn("⚠️ 'advance' input is not a trigger");
+              }
+            }
+          });
+
+          // Swipe slider logic
+          const swipeRange = document.getElementById("swipeRange");
+          swipeRange.addEventListener("input", () => {
+            if (swipeInput.type === StateMachineInputType.Number) {
+              const val = Number(swipeRange.value);
+              swipeInput.value = val;
+              console.log(`➡️ Setting 'swipe' to ${val}`);
+
+              // Restart animation if swipe goes back to 0 after advance fired
+              if (val === 0 && advanceTriggered) {
+                console.log("🔄 Swipe is 0 and advance triggered — restarting animation");
+                riveInstance.restart();
+                advanceTriggered = false;
+
+                // Reset slider UI to 0 explicitly to keep in sync
+                swipeRange.value = 0;
+              }
+            } else {
+              console.warn("⚠️ 'swipe' input not a number");
+            }
+          });
+        }, 100);
+      },
+      onError: (err) => {
+        console.error("❌ Rive failed to load:", err);
+      }
+    });
+  </script>
+
+</body>
+</html>

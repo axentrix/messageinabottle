@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rive Closeup Debug - Enum Fix</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      background: #ffffff;}
+    canvas {
+      width: 100%;
+      max-width: 500px;
+      height:1080px;
+   
+      display: block;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.8rem 1.2rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="riveCanvas"></canvas>
+  <button id="triggerCloseup">Fire "click" Trigger</button>
+
+  <script src="https://unpkg.com/@rive-app/canvas"></script>
+  <script>
+    const canvas = document.getElementById("riveCanvas");
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight || (width * 0.75);
+
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    const riveInstance = new rive.Rive({
+      src: "bottle.riv",
+      canvas: canvas,
+      autoplay: true,
+      stateMachines: ["closeup"],
+      onLoad: () => {
+        console.log("✅ Rive loaded.");
+
+        setTimeout(() => {
+          const inputs = riveInstance.stateMachineInputs("closeup");
+
+          // Define the enum manually
+          const StateMachineInputType = {
+            Number: 56,
+            Trigger: 58,
+            Boolean: 59
+          };
+
+          inputs.forEach(i => console.log(`Input name: ${i.name}, type code: ${i.type}`));
+
+          const clickInput = inputs.find(i => i.name === "click");
+
+          if (!clickInput) {
+            console.warn("⚠️ 'click' input not found.");
+            return;
+          } else {
+            console.log(`✅ 'click' input found with type code: ${clickInput.type}`);
+          }
+
+          document.getElementById("triggerCloseup").addEventListener("click", () => {
+            if (clickInput.type === StateMachineInputType.Trigger) {
+              console.log("🔥 Firing trigger");
+              clickInput.fire();
+            } else if (clickInput.type === StateMachineInputType.Boolean) {
+              console.log("🔥 Setting boolean to true");
+              clickInput.value = true;
+              setTimeout(() => clickInput.value = false, 200);
+            } else if (clickInput.type === StateMachineInputType.Number) {
+              console.log("🔥 Setting number to 1");
+              clickInput.value = 1;
+            } else {
+              console.warn("⚠️ Unknown input type code:", clickInput.type);
+            }
+          });
+        }, 100);
+      },
+      onError: (err) => {
+        console.error("❌ Rive failed to load:", err);
+      }
+    });
+  </script>
+
+</body>
+</html>
