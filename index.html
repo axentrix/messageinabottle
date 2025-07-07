@@ -54,23 +54,17 @@ body {
   <script>
     const canvas = document.getElementById("riveCanvas");
 
-    function resizeCanvas() {
-      const dpr = window.devicePixelRatio || 1;
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight || (width * 0.75);
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  if (riveInstance) {
+    riveInstance.resizeDrawingSurfaceToCanvas();
+  }
+}
 
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-
-      canvas.style.width = width + "px";
-      canvas.style.height = height + "px";
-
-      const ctx = canvas.getContext("2d");
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+   
 
     const riveInstance = new rive.Rive({
       src: "bottle.riv",
@@ -80,7 +74,8 @@ body {
       stateMachines: ["closeup"],
       onLoad: () => {
         console.log("✅ Rive loaded.");
-
+resizeCanvas();
+          riveInstance.resizeDrawingSurfaceToCanvas();
         setTimeout(() => {
           const inputs = riveInstance.stateMachineInputs("closeup");
 
