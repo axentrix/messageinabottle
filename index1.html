@@ -162,6 +162,40 @@ riveInstance.play();
         console.error("❌ Rive failed to load:", err);
       }
     });
+    // Mobile swipe gesture support
+let touchStartX = null;
+let swipeRange = document.getElementById("swipeRange");
+
+canvas.addEventListener("touchstart", function (e) {
+  if (e.touches.length === 1) {
+    touchStartX = e.touches[0].clientX;
+  }
+});
+
+canvas.addEventListener("touchmove", function (e) {
+  if (touchStartX === null) return;
+
+  const touchX = e.touches[0].clientX;
+  const deltaX = touchX - touchStartX;
+
+  // Sensitivity scale: adjust swipe responsiveness
+  const sensitivity = 0.3; // smaller = more sensitive
+  let newValue = parseFloat(swipeRange.value) + deltaX * sensitivity;
+
+  // Clamp between 0 and 100
+  newValue = Math.max(0, Math.min(100, newValue));
+
+  // Apply the new swipe value
+  swipeRange.value = newValue;
+  swipeRange.dispatchEvent(new Event("input"));
+
+  touchStartX = touchX; // update for continuous dragging
+});
+
+canvas.addEventListener("touchend", function () {
+  touchStartX = null;
+});
+
   </script>
 
 </body>
