@@ -41,8 +41,14 @@ body {
       margin-top: 1rem;
       font-weight: bold;
     }
-
-   
+@media (orientation: portrait) {
+  #riveCanvas {
+    position:fixed;
+  }
+  html, body{
+    overflow:hidden;
+  }
+}
   </style>
 </head>
 <body>
