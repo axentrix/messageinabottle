@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no">
-  <title>Rive Pull The Bottle - Advance & Swipe Controls</title>
+  <title>Rive Pull The Bottle</title>
   <style>
 html, body {
   margin: 0;
@@ -54,155 +54,161 @@ body {
 <body>
 
   <canvas id="riveCanvas"  width="360" height="640"></canvas>
-  <label for="swipeRange">Swipe (0 - 100):</label>
-  <input type="range" id="swipeRange" min="0" max="100" value="0" />
-  <button id="triggerAdvance">Fire "advance" Trigger / Restart if fired</button>
+
+  <input type="range" id="swipeRange" min="0" max="100" value="0" style="display:none;"/>
+  <button id="triggerAdvance" style="display:none;">Fire "advance" Trigger / Restart if fired</button>
 
 
 
   <script src="https://unpkg.com/@rive-app/canvas"></script>
-  <script>
-    const canvas = document.getElementById("riveCanvas");
+  <script src="https://unpkg.com/@rive-app/canvas"></script>
+<script>
+  const canvas = document.getElementById("riveCanvas");
+  let riveInstance = null;
+  let advanceInput = null;
+  let swipeInput = null;
+  let launchInput = null;
 
-  
+  let advanceTriggered = false;
+  let dragStartY = null;
+  let currentSwipeValue = 0;
 
-    let advanceTriggered = false;
+  const StateMachineInputType = { Number: 56, Trigger: 58, Boolean: 59 };
+  const maxDrag = 300;
 
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    if (riveInstance) {
+      riveInstance.resizeDrawingSurfaceToCanvas();
+    }
+  }
 
-function resizeCanvas() {
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
-  if (riveInstance) {
-    riveInstance.resizeDrawingSurfaceToCanvas();
+  window.addEventListener("resize", resizeCanvas);
+
+  function startRive(stateMachineName) {
+    if (riveInstance) {
+      riveInstance.cleanup(); // remove old instance events & state
+    }
+
+    riveInstance = new rive.Rive({
+      src: "bottlenew.riv",
+      canvas: canvas,
+      fit: "contain",
+      align: "center",
+      autoplay: true,
+      stateMachines: [stateMachineName],
+
+      onLoad: () => {
+        console.log(`✅ Rive loaded: ${stateMachineName}`);
+        resizeCanvas();
+        riveInstance.resizeDrawingSurfaceToCanvas();
+
+        const inputs = riveInstance.stateMachineInputs(stateMachineName);
+        advanceInput = inputs.find(i => i.name === "advance");
+        swipeInput = inputs.find(i => i.name === "swipe");
+        launchInput = inputs.find(i => i.name === "launch");
+
+        if (swipeInput) {
+          swipeInput.value = 0;
+          document.getElementById("swipeRange").value = 0;
+        }
+
+        if (stateMachineName === "pull the bottle") {
+          setupControls();
+        }
+      },
+
+      onStateChange: (event) => {
+        const states = event.data;
+        console.log(`🔁 ${stateMachineName} active states:`, states);
+
+        // ✅ Exit detected when active states array is empty
+     if (states.includes("exit")) {
+  console.log(`🚪 '${stateMachineName}' exited — switching...`);
+
+  riveInstance.pause();
+
+  if (stateMachineName === "pull the bottle") {
+    setTimeout(() => startRive("closeup"), 100);
+  } else if (stateMachineName === "closeup") {
+    setTimeout(() => startRive("pull the bottle"), 100);
   }
 }
-
-
-
-
-    const riveInstance = new rive.Rive({
-      src: "bottle.riv",
-      canvas: canvas,
-    fit: "contain",
-  align: "center",
-      autoplay: true,
-      stateMachines: ["pull the bottle"],
-      onLoad: () => {
-        console.log("✅ Rive loaded.");
-onLoad: () => {
-     resizeCanvas();
-          riveInstance.resizeDrawingSurfaceToCanvas();
-        },
-        setTimeout(() => {
-          const inputs = riveInstance.stateMachineInputs("pull the bottle");
-          const StateMachineInputType = { Number: 56, Trigger: 58, Boolean: 59 };
-
-          const advanceInput = inputs.find(i => i.name === "advance");
-          const swipeInput = inputs.find(i => i.name === "swipe");
-
-          if (!advanceInput) {
-            console.warn("⚠️ 'advance' input not found.");
-            return;
-          }
-          if (!swipeInput) {
-            console.warn("⚠️ 'swipe' input not found.");
-            return;
-          }
-
-          // Initialize swipe input value to 0
-          swipeInput.value = 0;
-
-          // Button logic: fire advance or restart
-          document.getElementById("triggerAdvance").addEventListener("click", () => {
-            if (advanceTriggered) {
-              console.log("🔄 Advance already triggered — restarting animation");
-              riveInstance.pause();
-
-// Reset your inputs as needed
-advanceInput.reset?.(); // if available; or just do advanceTriggered = false
-swipeInput.value = 0;
-
-// Restart playback
-riveInstance.play();
-              advanceTriggered = false;
-              // reset swipe input to 0 too for UI sync
-              swipeInput.value = 0;
-              document.getElementById("swipeRange").value = 0;
-            } else {
-              if (advanceInput.type === StateMachineInputType.Trigger) {
-                console.log("🔥 Firing 'advance' trigger");
-                advanceInput.fire();
-                advanceTriggered = true;
-              } else {
-                console.warn("⚠️ 'advance' input is not a trigger");
-              }
-            }
-          });
-
-          // Swipe slider logic
-          const swipeRange = document.getElementById("swipeRange");
-          swipeRange.addEventListener("input", () => {
-            if (swipeInput.type === StateMachineInputType.Number) {
-              const val = Number(swipeRange.value);
-              swipeInput.value = val;
-              console.log(`➡️ Setting 'swipe' to ${val}`);
-
-              // Restart animation if swipe goes back to 0 after advance fired
-              if (val === 0 && advanceTriggered) {
-                console.log("🔄 Swipe is 0 and advance triggered — restarting animation");
-                riveInstance.restart();
-                advanceTriggered = false;
-
-                // Reset slider UI to 0 explicitly to keep in sync
-                swipeRange.value = 0;
-              }
-            } else {
-              console.warn("⚠️ 'swipe' input not a number");
-            }
-          });
-        }, 100);
       },
+
       onError: (err) => {
         console.error("❌ Rive failed to load:", err);
       }
     });
-    // Mobile swipe gesture support
-let touchStartX = null;
-let swipeRange = document.getElementById("swipeRange");
-
-canvas.addEventListener("touchstart", function (e) {
-  if (e.touches.length === 1) {
-    touchStartX = e.touches[0].clientX;
   }
-});
 
-canvas.addEventListener("touchmove", function (e) {
-  if (touchStartX === null) return;
+  function setupControls() {
+    document.getElementById("triggerAdvance").addEventListener("click", () => {
+      if (advanceInput?.type === StateMachineInputType.Trigger) {
+        advanceInput.fire();
+        advanceTriggered = true;
+      }
+    });
 
-  const touchX = e.touches[0].clientX;
-  const deltaX = touchX - touchStartX;
+    document.getElementById("swipeRange").addEventListener("input", (e) => {
+      const val = Number(e.target.value);
+      if (swipeInput) swipeInput.value = val;
+    });
 
-  // Sensitivity scale: adjust swipe responsiveness
-  const sensitivity = 0.3; // smaller = more sensitive
-  let newValue = parseFloat(swipeRange.value) + deltaX * sensitivity;
+    function updateSwipeFromDelta(deltaY) {
+      const clamped = Math.min(Math.max(deltaY, 0), maxDrag);
+      const value = Math.round((clamped / maxDrag) * 100);
+      if (swipeInput) swipeInput.value = value;
+      currentSwipeValue = value;
+    }
 
-  // Clamp between 0 and 100
-  newValue = Math.max(0, Math.min(100, newValue));
+    canvas.addEventListener("mousedown", (e) => {
+      dragStartY = e.clientY;
+    });
+    canvas.addEventListener("mousemove", (e) => {
+      if (dragStartY !== null) {
+        const delta = e.clientY - dragStartY;
+        updateSwipeFromDelta(delta);
+      }
+    });
+    canvas.addEventListener("mouseup", () => {
+      if (dragStartY !== null) {
+        console.log(`🛑 Drag ended. Final swipe: ${currentSwipeValue}`);
+        if (launchInput?.type === StateMachineInputType.Boolean) {
+          launchInput.value = true;
+        }
+      }
+      dragStartY = null;
+    });
 
-  // Apply the new swipe value
-  swipeRange.value = newValue;
-  swipeRange.dispatchEvent(new Event("input"));
+    canvas.addEventListener("touchstart", (e) => {
+      dragStartY = e.touches[0].clientY;
+    });
+    canvas.addEventListener("touchmove", (e) => {
+      if (dragStartY !== null) {
+        const delta = e.touches[0].clientY - dragStartY;
+        updateSwipeFromDelta(delta);
+      }
+    });
+    canvas.addEventListener("touchend", () => {
+      if (dragStartY !== null) {
+        console.log(`🛑 Touch ended. Final swipe: ${currentSwipeValue}`);
+        if (launchInput?.type === StateMachineInputType.Boolean) {
+          launchInput.value = true;
+        }
+      }
+      dragStartY = null;
+    });
+  }
 
-  touchStartX = touchX; // update for continuous dragging
-});
+  // 🔰 Load initial state machine
+  startRive("pull the bottle");
+</script>
 
-canvas.addEventListener("touchend", function () {
-  touchStartX = null;
-});
 
-  </script>
 
 </body>
 </html>
